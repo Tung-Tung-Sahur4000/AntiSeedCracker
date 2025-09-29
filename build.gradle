@@ -1,9 +1,10 @@
 plugins {
     id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 group = 'me.gadse'
-version = '1.2.2'
+version = '1.21.8'
 
 repositories {
     mavenCentral()
@@ -14,11 +15,13 @@ repositories {
     maven {
         url = "https://repo.dmulloy2.net/repository/public/"
     }
+    maven { url 'https://jitpack.io' }
 }
 
 dependencies {
     compileOnly 'org.spigotmc:spigot-api:1.21-R0.1-SNAPSHOT'
     compileOnly 'com.comphenix.protocol:ProtocolLib:5.1.0'
+    implementation 'com.github.Anon8281:UniversalScheduler:1.2.0'
 }
 
 def targetJavaVersion = 17
@@ -45,3 +48,10 @@ processResources {
         expand props
     }
 }
+
+shadowJar {
+    relocate 'com.github.Anon8281.universalScheduler', 'me.gadse.antiseedcracker.libs.universalscheduler'
+    archiveClassifier.set('')
+}
+
+tasks.build.dependsOn(shadowJar)

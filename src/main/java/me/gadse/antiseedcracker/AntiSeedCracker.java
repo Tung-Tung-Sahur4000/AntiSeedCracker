@@ -2,7 +2,8 @@ package me.gadse.antiseedcracker;
 
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
-
+import com.github.Anon8281.universalScheduler.UniversalScheduler;
+import com.github.Anon8281.universalScheduler.scheduling.schedulers.TaskScheduler;
 import me.gadse.antiseedcracker.commands.AntiSeedCrackerCommand;
 import me.gadse.antiseedcracker.listeners.DragonRespawnSpikeModifier;
 import me.gadse.antiseedcracker.listeners.EndCityModifier;
@@ -32,12 +33,16 @@ public final class AntiSeedCracker extends JavaPlugin implements CommandExecutor
     private DragonRespawnSpikeModifier dragonRespawnspikeModifier;
     private EndCityModifier endCityModifier;
 
+    private static TaskScheduler scheduler;
+
     @Override
     public void onEnable() {
         if (!getDataFolder().exists() && !getDataFolder().mkdirs()) {
             getLogger().warning("Config folder can not be written. Check read/write permissions.");
         }
         saveDefaultConfig();
+
+        scheduler = UniversalScheduler.getScheduler(this);
 
         protocolManager = ProtocolLibrary.getProtocolManager();
         modifiedSpike = new NamespacedKey(this, "modified-spike");
@@ -52,6 +57,10 @@ public final class AntiSeedCracker extends JavaPlugin implements CommandExecutor
         }
 
         reload(true);
+    }
+
+    public static TaskScheduler getScheduler() {
+        return scheduler;
     }
 
     public void reload(boolean isOnEnable) {
@@ -107,7 +116,6 @@ public final class AntiSeedCracker extends JavaPlugin implements CommandExecutor
         return ThreadLocalRandom.current().nextLong(min, max + 1);
     }
 
-    // https://minecraft.wiki/w/End_spike
     private final List<Integer> spikeHeights = List.of(76, 79, 82, 85, 88, 91, 94, 97, 100, 103);
 
     public void modifyEndSpikes(World world) {
@@ -153,7 +161,6 @@ public final class AntiSeedCracker extends JavaPlugin implements CommandExecutor
         Map<Integer, Block> bedrockBlocksByHeight = new HashMap<>(10);
 
         for (int i = 0; i < 10; i++) {
-            // Source: net.minecraft.world.level.levelgen.feature.SpikeFeature.SpikeCacheLoader
             double x = 42.0 * Math.cos(2.0 * (-Math.PI + 0.3141592653589793 * i));
             double z = 42.0 * Math.sin(2.0 * (-Math.PI + 0.3141592653589793 * i));
 

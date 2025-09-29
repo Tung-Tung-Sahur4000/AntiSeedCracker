@@ -1,5 +1,6 @@
 package me.gadse.antiseedcracker.listeners;
 
+import com.github.Anon8281.universalScheduler.scheduling.tasks.MyScheduledTask;
 import me.gadse.antiseedcracker.AntiSeedCracker;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -26,7 +27,6 @@ public class DragonRespawnSpikeModifier implements Listener {
         try {
             crystalType = EntityType.END_CRYSTAL;
         } catch (NoSuchFieldError ignored) {
-            // Support for versions below 1.20.5
             crystalType = EntityType.valueOf("ENDER_CRYSTAL");
         }
     }
@@ -46,11 +46,13 @@ public class DragonRespawnSpikeModifier implements Listener {
         world.getPersistentDataContainer().set(plugin.getModifiedSpike(), PersistentDataType.BOOLEAN, false);
 
         taskScheduled = true;
-        plugin.getServer().getScheduler().runTaskTimer(plugin, task -> {
+
+        final MyScheduledTask[] repeatingTask = new MyScheduledTask[1];
+        repeatingTask[0] = AntiSeedCracker.getScheduler().runTaskTimer(() -> {
             DragonBattle dragonBattle = world.getEnderDragonBattle();
             if (dragonBattle == null) {
-                // Fall-back, should not be reachable.
                 plugin.modifyEndSpikes(world);
+                if (repeatingTask[0] != null) repeatingTask[0].cancel();
                 return;
             }
 
@@ -62,7 +64,7 @@ public class DragonRespawnSpikeModifier implements Listener {
 
             plugin.modifyEndSpikes(world);
             taskScheduled = false;
-            task.cancel();
+            if (repeatingTask[0] != null) repeatingTask[0].cancel();
         }, 300L, 20L);
     }
 
@@ -70,7 +72,7 @@ public class DragonRespawnSpikeModifier implements Listener {
         Location endLocation = new Location(world, 0, 65, 0);
         return world.getNearbyEntities(
                 endLocation, 7, 3, 7, entity -> entity instanceof EnderCrystal
-                            && entity.getLocation().getBlock().getRelative(BlockFace.DOWN).getType() == Material.BEDROCK
+                        && entity.getLocation().getBlock().getRelative(BlockFace.DOWN).getType() == Material.BEDROCK
         ).size();
     }
 
