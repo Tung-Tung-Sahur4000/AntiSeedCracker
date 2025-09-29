@@ -13,9 +13,8 @@ repositories {
         url = 'https://repo.papermc.io/repository/maven-public/'
     }
     maven {
-        url = "https://repo.dmulloy2.net/repository/public/"
+        url = 'https://jitpack.io'
     }
-    maven { url 'https://jitpack.io' }
 }
 
 dependencies {
