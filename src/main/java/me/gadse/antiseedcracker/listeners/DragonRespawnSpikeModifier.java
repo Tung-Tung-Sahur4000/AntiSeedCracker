@@ -36,36 +36,43 @@ public class DragonRespawnSpikeModifier implements Listener {
         World world = event.getEntity().getWorld();
         if (event.getEntityType() != crystalType
                 || world.getEnvironment() != World.Environment.THE_END
-                || event.getBlock().getType() != Material.BEDROCK
-                || isOutsidePortalRadius(event.getBlock().getLocation())
-                || getAmountOfEnderCrystalsOnPortal(world) != 3
-                || !plugin.getConfig().getStringList("modifiers.end_spikes.worlds").contains(world.getName())
-                || taskScheduled) {
+                || !plugin.getConfig().getStringList("modifiers.end_spikes.worlds").contains(world.getName())) {
             return;
         }
-        world.getPersistentDataContainer().set(plugin.getModifiedSpike(), PersistentDataType.BOOLEAN, false);
 
-        taskScheduled = true;
+        Location portalCenter = new Location(world, 0, 65, 0);
+        AntiSeedCracker.getScheduler().runTask(portalCenter, () -> {
+            if (event.getBlock().getType() != Material.BEDROCK
+                    || isOutsidePortalRadius(event.getBlock().getLocation())
+                    || getAmountOfEnderCrystalsOnPortal(world) != 3
+                    || taskScheduled) {
+                return;
+            }
 
-        final MyScheduledTask[] repeatingTask = new MyScheduledTask[1];
-        repeatingTask[0] = AntiSeedCracker.getScheduler().runTaskTimer(() -> {
-            DragonBattle dragonBattle = world.getEnderDragonBattle();
-            if (dragonBattle == null) {
+            world.getPersistentDataContainer().set(plugin.getModifiedSpike(), PersistentDataType.BOOLEAN, false);
+            taskScheduled = true;
+
+            final MyScheduledTask[] repeatingTask = new MyScheduledTask[1];
+            repeatingTask[0] = AntiSeedCracker.getScheduler().runTaskTimer(portalCenter, () -> {
+                DragonBattle dragonBattle = world.getEnderDragonBattle();
+                if (dragonBattle == null) {
+                    plugin.modifyEndSpikes(world);
+                    if (repeatingTask[0] != null) repeatingTask[0].cancel();
+                    taskScheduled = false;
+                    return;
+                }
+
+                if (dragonBattle.getRespawnPhase() == DragonBattle.RespawnPhase.START
+                        || dragonBattle.getRespawnPhase() == DragonBattle.RespawnPhase.PREPARING_TO_SUMMON_PILLARS
+                        || dragonBattle.getRespawnPhase() == DragonBattle.RespawnPhase.SUMMONING_PILLARS) {
+                    return;
+                }
+
                 plugin.modifyEndSpikes(world);
+                taskScheduled = false;
                 if (repeatingTask[0] != null) repeatingTask[0].cancel();
-                return;
-            }
-
-            if (dragonBattle.getRespawnPhase() == DragonBattle.RespawnPhase.START
-                    || dragonBattle.getRespawnPhase() == DragonBattle.RespawnPhase.PREPARING_TO_SUMMON_PILLARS
-                    || dragonBattle.getRespawnPhase() == DragonBattle.RespawnPhase.SUMMONING_PILLARS) {
-                return;
-            }
-
-            plugin.modifyEndSpikes(world);
-            taskScheduled = false;
-            if (repeatingTask[0] != null) repeatingTask[0].cancel();
-        }, 300L, 20L);
+            }, 300L, 20L);
+        });
     }
 
     private int getAmountOfEnderCrystalsOnPortal(World world) {

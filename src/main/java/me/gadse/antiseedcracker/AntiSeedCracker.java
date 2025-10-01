@@ -20,9 +20,11 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class AntiSeedCracker extends JavaPlugin implements CommandExecutor {
@@ -89,7 +91,7 @@ public final class AntiSeedCracker extends JavaPlugin implements CommandExecutor
                     return;
                 }
 
-                modifyEndSpikes(world);
+                getScheduler().runTask(new Location(world, 0, 0, 0), () -> modifyEndSpikes(world));
             });
             getServer().getPluginManager().registerEvents(dragonRespawnspikeModifier, this);
         }
@@ -124,12 +126,15 @@ public final class AntiSeedCracker extends JavaPlugin implements CommandExecutor
             return;
         }
 
-        Map<Integer, Block> bedrockBlocksByHeight = getBedrockBlocksByHeight(world);
-        if (getConfig().getString("modify_end_spikes.mode", "swap").equalsIgnoreCase("swap")) {
-            swapEndSpikes(world, bedrockBlocksByHeight);
-        } else {
-            moveEndSpike(world, bedrockBlocksByHeight);
-        }
+        getBedrockBlocksByHeightAsync(world).thenAccept(bedrockBlocksByHeight -> {
+            getScheduler().runTask(new Location(world, 0, 0, 0), () -> {
+                if (getConfig().getString("modifiers.end_spikes.mode", "swap").equalsIgnoreCase("swap")) {
+                    swapEndSpikes(world, bedrockBlocksByHeight);
+                } else {
+                    moveEndSpike(world, bedrockBlocksByHeight);
+                }
+            });
+        });
     }
 
     private void swapEndSpikes(World world, Map<Integer, Block> bedrockBlocksByHeight) {
@@ -137,6 +142,8 @@ public final class AntiSeedCracker extends JavaPlugin implements CommandExecutor
         int nextSpikeIndex = randomSpikeIndex + 1 > spikeHeights.size() - 1 ? 0 : randomSpikeIndex + 1;
         Block spike_one = bedrockBlocksByHeight.get(spikeHeights.get(randomSpikeIndex));
         Block spike_two = bedrockBlocksByHeight.get(spikeHeights.get(nextSpikeIndex));
+
+        if (spike_one == null || spike_two == null) return;
 
         spike_one.setType(Material.OBSIDIAN);
         new Location(world, spike_one.getX(), spike_two.getY(), spike_one.getZ()).getBlock().setType(Material.BEDROCK);
@@ -151,27 +158,40 @@ public final class AntiSeedCracker extends JavaPlugin implements CommandExecutor
         int randomSpikeIndex = ThreadLocalRandom.current().nextInt(spikeHeights.size());
         Block endSpike = bedrockBlocksByHeight.get(spikeHeights.get(randomSpikeIndex));
 
+        if (endSpike == null) return;
+
         endSpike.setType(Material.OBSIDIAN);
         endSpike.getRelative(BlockFace.DOWN).setType(Material.BEDROCK);
 
         world.getPersistentDataContainer().set(modifiedSpike, PersistentDataType.BOOLEAN, true);
     }
 
-    public Map<Integer, Block> getBedrockBlocksByHeight(World world) {
-        Map<Integer, Block> bedrockBlocksByHeight = new HashMap<>(10);
-
+    public CompletableFuture<Map<Integer, Block>> getBedrockBlocksByHeightAsync(World world) {
+        List<CompletableFuture<Block>> futures = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             double x = 42.0 * Math.cos(2.0 * (-Math.PI + 0.3141592653589793 * i));
             double z = 42.0 * Math.sin(2.0 * (-Math.PI + 0.3141592653589793 * i));
+            Location loc = new Location(world, x, 0, z);
 
-            Block block = world.getHighestBlockAt(new Location(world, x, 0, z));
-            while (block.getType() != Material.BEDROCK && block.getY() > 0) {
-                block = block.getRelative(BlockFace.DOWN);
-            }
-            bedrockBlocksByHeight.put(block.getY(), block);
+            CompletableFuture<Block> future = new CompletableFuture<>();
+            getScheduler().runTask(loc, () -> {
+                Block block = world.getHighestBlockAt(loc);
+                while (block.getType() != Material.BEDROCK && block.getY() > 0) {
+                    block = block.getRelative(BlockFace.DOWN);
+                }
+                future.complete(block);
+            });
+            futures.add(future);
         }
 
-        return bedrockBlocksByHeight;
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenApply(v -> {
+            Map<Integer, Block> bedrockBlocksByHeight = new HashMap<>(10);
+            for (CompletableFuture<Block> future : futures) {
+                Block block = future.join();
+                bedrockBlocksByHeight.put(block.getY(), block);
+            }
+            return bedrockBlocksByHeight;
+        });
     }
 
     public NamespacedKey getModifiedSpike() {
