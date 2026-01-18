@@ -3,7 +3,7 @@ version: '${version}'
 main: me.gadse.antiseedcracker.AntiSeedCracker
 api-version: 1.21
 folia-supported: true
-authors: [Gadse]
+authors: [Gadse, leir4iks]
 description: Modifies the hashed seed sent to clients upon joining to make cracking the seed of your world harder
 depend: ["ProtocolLib"]
 
