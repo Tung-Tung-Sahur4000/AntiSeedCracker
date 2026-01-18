@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'me.gadse'
-version = '1.21.8'
+version = '1.21.11'
 
 repositories {
     mavenCentral()
@@ -21,12 +21,12 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'org.spigotmc:spigot-api:1.21-R0.1-SNAPSHOT'
-    compileOnly 'net.dmulloy2:ProtocolLib:5.4.0'
+    compileOnly 'org.spigotmc:spigot-api:1.21.1-R0.1-SNAPSHOT'
+    compileOnly 'net.dmulloy2:ProtocolLib:5.7.0'
     implementation 'com.github.Anon8281:UniversalScheduler:0.1.7'
 }
 
-def targetJavaVersion = 17
+def targetJavaVersion = 21
 java {
     def javaVersion = JavaVersion.toVersion(targetJavaVersion)
     sourceCompatibility = javaVersion
@@ -40,6 +40,7 @@ tasks.withType(JavaCompile).configureEach {
     if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
         options.release = targetJavaVersion
     }
+    options.encoding = 'UTF-8'
 }
 
 processResources {

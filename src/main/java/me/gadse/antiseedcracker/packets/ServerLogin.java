@@ -21,18 +21,19 @@ public class ServerLogin extends PacketAdapter {
         try {
             int structureSize = packet.getStructures().size();
             if (structureSize == 0) {
-                plugin.getLogger().warning(
-                        "Can not write hashed seed at login for player " + event.getPlayer().getName() + "."
-                );
+                if (packet.getLongs().size() > 0) {
+                    packet.getLongs().write(0, plugin.randomizeHashedSeed(packet.getLongs().read(0)));
+                }
                 return;
             }
+
             InternalStructure structureModifier = packet.getStructures().read(structureSize - 1);
-            structureModifier.getLongs().write(
-                    0, plugin.randomizeHashedSeed(structureModifier.getLongs().read(0))
-            );
+            if (structureModifier.getLongs().size() > 0) {
+                structureModifier.getLongs().write(
+                        0, plugin.randomizeHashedSeed(structureModifier.getLongs().read(0))
+                );
+            }
         } catch (FieldAccessException | NullPointerException ex) {
-            // FieldAccessException is caused by old versions of Minecraft
-            // NPE is caused by old versions of ProtocolLib
             if (!warnedForOutdatedVersion) {
                 if (ex instanceof FieldAccessException) {
                     plugin.getLogger().warning(
@@ -44,7 +45,11 @@ public class ServerLogin extends PacketAdapter {
                 }
                 warnedForOutdatedVersion = true;
             }
-            packet.getLongs().write(0, plugin.randomizeHashedSeed(packet.getLongs().read(0)));
+            try {
+                if (packet.getLongs().size() > 0) {
+                    packet.getLongs().write(0, plugin.randomizeHashedSeed(packet.getLongs().read(0)));
+                }
+            } catch (Exception ignored) {}
         }
         event.setPacket(packet);
     }
