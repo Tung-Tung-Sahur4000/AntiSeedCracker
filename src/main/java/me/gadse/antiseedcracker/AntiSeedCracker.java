@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class AntiSeedCracker extends JavaPlugin implements CommandExecutor {
@@ -36,6 +37,7 @@ public final class AntiSeedCracker extends JavaPlugin implements CommandExecutor
     private EndCityModifier endCityModifier;
 
     private static TaskScheduler scheduler;
+    private final Map<Long, Long> randomizedSeeds = new ConcurrentHashMap<>();
 
     @Override
     public void onEnable() {
@@ -87,7 +89,7 @@ public final class AntiSeedCracker extends JavaPlugin implements CommandExecutor
                 }
 
                 if (world.getEnvironment() != World.Environment.THE_END) {
-                    getLogger().warning("The world '%s' is not an end dimension, it will be ignored.");
+                    getLogger().warning(String.format("The world '%s' is not an end dimension, it will be ignored.", world.getName()));
                     return;
                 }
 
@@ -109,13 +111,15 @@ public final class AntiSeedCracker extends JavaPlugin implements CommandExecutor
     }
 
     public long randomizeHashedSeed(long hashedSeed) {
-        int length = Long.toString(hashedSeed).length();
-        if (length > 18) {
-            length = 18;
-        }
-        long min = (long) Math.pow(10, length - 1);
-        long max = (long) (Math.pow(10, length) - 1);
-        return ThreadLocalRandom.current().nextLong(min, max + 1);
+        return randomizedSeeds.computeIfAbsent(hashedSeed, seed -> {
+            int length = Long.toString(seed).length();
+            if (length > 18) {
+                length = 18;
+            }
+            long min = (long) Math.pow(10, length - 1);
+            long max = (long) (Math.pow(10, length) - 1);
+            return ThreadLocalRandom.current().nextLong(min, max + 1);
+        });
     }
 
     private final List<Integer> spikeHeights = List.of(76, 79, 82, 85, 88, 91, 94, 97, 100, 103);

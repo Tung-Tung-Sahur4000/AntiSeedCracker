@@ -17,18 +17,12 @@ import org.bukkit.persistence.PersistentDataType;
 public class DragonRespawnSpikeModifier implements Listener {
 
     private final AntiSeedCracker plugin;
-    private boolean taskScheduled = false;
+    private final java.util.Set<java.util.UUID> scheduledWorlds = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
-    private EntityType crystalType;
+    private final EntityType crystalType = EntityType.END_CRYSTAL;
 
     public DragonRespawnSpikeModifier(AntiSeedCracker plugin) {
         this.plugin = plugin;
-
-        try {
-            crystalType = EntityType.END_CRYSTAL;
-        } catch (NoSuchFieldError ignored) {
-            crystalType = EntityType.valueOf("ENDER_CRYSTAL");
-        }
     }
 
     @EventHandler
@@ -45,12 +39,12 @@ public class DragonRespawnSpikeModifier implements Listener {
             if (event.getBlock().getType() != Material.BEDROCK
                     || isOutsidePortalRadius(event.getBlock().getLocation())
                     || getAmountOfEnderCrystalsOnPortal(world) != 3
-                    || taskScheduled) {
+                    || scheduledWorlds.contains(world.getUID())) {
                 return;
             }
 
             world.getPersistentDataContainer().set(plugin.getModifiedSpike(), PersistentDataType.BOOLEAN, false);
-            taskScheduled = true;
+            scheduledWorlds.add(world.getUID());
 
             final MyScheduledTask[] repeatingTask = new MyScheduledTask[1];
             repeatingTask[0] = AntiSeedCracker.getScheduler().runTaskTimer(portalCenter, () -> {
@@ -58,7 +52,7 @@ public class DragonRespawnSpikeModifier implements Listener {
                 if (dragonBattle == null) {
                     plugin.modifyEndSpikes(world);
                     if (repeatingTask[0] != null) repeatingTask[0].cancel();
-                    taskScheduled = false;
+                    scheduledWorlds.remove(world.getUID());
                     return;
                 }
 
@@ -69,7 +63,7 @@ public class DragonRespawnSpikeModifier implements Listener {
                 }
 
                 plugin.modifyEndSpikes(world);
-                taskScheduled = false;
+                scheduledWorlds.remove(world.getUID());
                 if (repeatingTask[0] != null) repeatingTask[0].cancel();
             }, 300L, 20L);
         });
